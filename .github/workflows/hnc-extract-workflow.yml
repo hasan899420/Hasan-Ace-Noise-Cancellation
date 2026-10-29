@@ -1,0 +1,25 @@
+name: Extract HNC source archive
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract and commit source
+        run: |
+          set -euo pipefail
+          test -f HNC-source.zip
+          mkdir -p /tmp/hnc-extracted
+          unzip -o HNC-source.zip -d /tmp/hnc-extracted
+          shopt -s dotglob
+          cp -a /tmp/hnc-extracted/. .
+          rm -rf /tmp/hnc-extracted HNC-source.zip
+          git config user.name "hasan899420"
+          git config user.email "hasan899420@users.noreply.github.com"
+          git add -A
+          git status --short
+          git commit -m "Sync HNC source" || echo "nothing to commit"
+          git push
