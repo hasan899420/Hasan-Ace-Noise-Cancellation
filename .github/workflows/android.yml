@@ -1,0 +1,86 @@
+name: Hasan Ace Noise Cancellation Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to build (defaults to current)"
+        required: false
+        type: string
+      build_type:
+        description: Build type
+        required: true
+        default: debug
+        type: choice
+        options:
+          - debug
+          - release-apk
+          - release-aab
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Setup Node
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1.6
+        with:
+          ndk-version: r28b
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Prebuild Android
+        run: bunx expo prebuild --platform android --no-install
+
+      - name: Install EAS CLI
+        run: bun install -g eas-cli
+
+      - name: Build with EAS local
+        run: |
+          set -euo pipefail
+
+          case "${{ inputs.build_type }}" in
+            debug)
+              PROFILE=development
+              ;;
+            release-apk)
+              PROFILE=production
+              ;;
+            release-aab)
+              PROFILE=playstore
+              ;;
+            *)
+              echo "Unknown build type: ${{ inputs.build_type }}"
+              exit 1
+              ;;
+          esac
+
+          eas build --platform android --profile "$PROFILE" --local
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-${{ inputs.build_type }}
+          path: |
+            ~/**/*.apk
+            ~/**/*.aab
+          archive: false
+          if-no-files-found: error
