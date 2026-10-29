@@ -1,0 +1,37 @@
+name: HNC Gradle APK Build
+on:
+  workflow_dispatch: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1.6
+        with:
+          ndk-version: r28b
+      - name: Install dependencies
+        run: bun install
+      - name: Prebuild Android
+        run: bunx expo prebuild --platform android --no-install
+      - name: Build release APK with Gradle (no EAS, no Expo login)
+        run: |
+          cd android
+          ./gradlew :app:assembleRelease --no-daemon
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: HNC-release-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
